@@ -41,6 +41,7 @@ config_file = 'config.ini'
 my_path = os.getcwd()
 now_version = "1.1.7"
 
+from autopush import AutoPushStream
 
 def appsign(params, appkey, appsec):
     """
@@ -166,6 +167,9 @@ class BiliLiveGUI:
 
         # 绑定窗口关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        #推流
+        self.auto_push_video = AutoPushStream()
 
     def run(self):
         if self.tray_icon is None and sys.platform != "linux":
@@ -501,7 +505,11 @@ class BiliLiveGUI:
 
         self.stop_btn = ttk.Button(btn_frame, text="停止直播", command=self.stop_live, style="Red.TButton",
                                    state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.RIGHT, padx=10)
+        self.stop_btn.pack(side=tk.RIGHT, padx=20)
+
+        self.autopush_btn = ttk.Button(btn_frame, text="开始推流", command=self.push_live, style="Green.TButton",
+                                   state=tk.DISABLED)
+        self.autopush_btn.pack(side=tk.RIGHT, padx=10)
 
         # 日志区域
         log_frame = ttk.LabelFrame(result_frame, text="操作日志")
@@ -1039,6 +1047,7 @@ class BiliLiveGUI:
         self.live_server.set(rtmp_addr)
         self.live_code.set(rtmp_code)
         self.stop_btn.config(state=tk.NORMAL)
+        self.autopush_btn.config(state=tk.NORMAL)
         self.notebook.select(self.result_tab)
 
     def stop_live(self):
@@ -1049,6 +1058,9 @@ class BiliLiveGUI:
 
         self.log_message("正在停止直播...")
         self.stop_btn.config(state=tk.DISABLED)
+        self.autopush_btn.config(state=tk.DISABLED)
+        if self.auto_push_video.is_pushing:
+             self.auto_push_video.stop_push()
 
         # 在新线程中执行停止直播的操作
         threading.Thread(target=self._stop_live_thread, daemon=True).start()
@@ -1083,6 +1095,7 @@ class BiliLiveGUI:
             messagebox.showerror("错误", "停止直播出错！")
         finally:
             self.root.after(0, lambda: self.stop_btn.config(state=tk.NORMAL))
+            self.root.after(0, lambda: self.autopush_btn.config(state=tk.NORMAL))
 
     def _update_after_stop(self):
         """停止直播后更新UI"""
@@ -1366,6 +1379,17 @@ class BiliLiveGUI:
             except Exception as e:
                 self.log_message(f"保存文件出错: {str(e)}")
                 messagebox.showerror("错误", f"保存文件出错！")
+
+    def push_completed_callback(self,success: bool, message: str):
+        self.log_message(f"推流结果 {success}, {message}")
+        self.stop_live()
+
+    def push_live(self):
+        self.auto_push_video.load_video_paths()
+        path = self.auto_push_video.getRandomVideoPath()
+        self.log_message(f"推流视频路径: {path}")
+        self.auto_push_video.start_push(path,self.live_server.get(),self.live_code.get() ,self.push_completed_callback)
+        self.autopush_btn.config(state=tk.DISABLED)
 
 
 if __name__ == "__main__":
