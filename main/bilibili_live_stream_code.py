@@ -533,7 +533,7 @@ class BiliLiveGUI:
 
         # 服务器地址
         ttk.Label(info_frame, text="服务器地址:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        server_entry = ttk.Entry(info_frame, textvariable=self.live_server, width=60, state="readonly")
+        server_entry = ttk.Entry(info_frame, textvariable=self.live_server, width=60)
         server_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
 
         # 复制按钮
@@ -541,7 +541,7 @@ class BiliLiveGUI:
 
         # 推流码
         ttk.Label(info_frame, text="推流码:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        code_entry = ttk.Entry(info_frame, textvariable=self.live_code, width=60, state="readonly")
+        code_entry = ttk.Entry(info_frame, textvariable=self.live_code, width=60)
         code_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
         # 复制按钮
@@ -566,6 +566,12 @@ class BiliLiveGUI:
         self.autopush_btn = ttk.Button(btn_frame, text="开始推流", command=self.push_live, style="Green.TButton",
                                    state=tk.DISABLED)
         self.autopush_btn.pack(side=tk.RIGHT, padx=10)
+
+        #直播姬第三方推流
+        self.autopush_by_bilibili_btn = ttk.Button(btn_frame, text="开始直播姬推流", command=self.push_by_bilibili, style="Green.TButton",
+                                   state=tk.NORMAL)
+        self.autopush_by_bilibili_btn.pack(side=tk.LEFT, padx=0)
+
 
         # 日志区域
         log_frame = ttk.LabelFrame(result_frame, text="操作日志")
@@ -1157,8 +1163,8 @@ class BiliLiveGUI:
             self.log_message(f"停止直播时出错: {str(e)}")
             messagebox.showerror("错误", "停止直播出错！")
         finally:
-            self.root.after(0, lambda: self.stop_btn.config(state=tk.NORMAL))
-            self.root.after(0, lambda: self.autopush_btn.config(state=tk.NORMAL))
+            self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
+            self.root.after(0, lambda: self.autopush_btn.config(state=tk.DISABLED))
 
     def _update_after_stop(self):
         """停止直播后更新UI"""
@@ -1453,6 +1459,13 @@ class BiliLiveGUI:
         self.log_message(f"推流视频路径: {path}")
         self.auto_push_video.start_push(path,self.live_server.get(),self.live_code.get() ,self.push_completed_callback)
         self.autopush_btn.config(state=tk.DISABLED)
+
+    def push_by_bilibili(self):
+        self.auto_push_video.load_video_paths()
+        path = self.auto_push_video.getRandomVideoPath()
+        self.log_message(f"推流视频路径: {path}")
+        self.stop_btn.config(state=tk.NORMAL)
+        self.auto_push_video.start_push(path,self.live_server.get(),self.live_code.get() ,self.push_completed_callback)
 
 
 if __name__ == "__main__":
