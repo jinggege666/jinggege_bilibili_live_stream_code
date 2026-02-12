@@ -7,6 +7,8 @@ import sys
 if sys.platform != 'win32':
     os.environ["GDK_BACKEND"] = "x11"
     os.environ["QT_QPA_PLATFORM"] = "xcb"
+    # [Fix] 强制使用 Fusion 风格，防止 Qt 尝试加载 GTK 主题 (QGtkStyle) 导致崩溃
+    os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
 
 import webview
 import logging
