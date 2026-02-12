@@ -54,7 +54,7 @@ if __name__ == '__main__':
         width=window_width,
         height=window_height,
         frameless=True,
-        easy_drag=False, # [修复] 禁用 easy_drag，在 Linux (GDK_BACKEND=x11) 下依靠前端自定义拖拽
+        easy_drag=sys.platform != 'win32', # Windows: 自定义拖拽; Linux: 启用原生拖拽(Wayland兼容)
         # hidden=True
     )
     def center_and_show_window(window):

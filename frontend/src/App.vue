@@ -174,7 +174,7 @@ const handleSidebarAccountClick = () => {
 
   <div v-else class="app-root">
     <div
-      class="drag-bar"
+      class="drag-bar pywebview-drag-region"
       @pointerdown="handlePointerDown"
       @pointermove="handlePointerMove"
       @pointerup="handlePointerUp"
