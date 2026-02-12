@@ -56,7 +56,8 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0 libgirepository1.0-dev libcairo2-dev
+        sudo apt-get install -y gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0 \
+          libgirepository1.0-dev libcairo2-dev pkg-config python3-dev
         pip install PyGObject
 
     # --- 步骤：自动处理图标 (macOS转icns, Linux转png) ---
