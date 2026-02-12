@@ -49,15 +49,10 @@
    pip install pyinstaller Pillow
    ```
 
-   **Linux 托盘依赖（可选）**：如需系统托盘功能，请安装以下系统包：
-
-   ```bash
-   # Ubuntu / Debian
-   sudo apt install gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0 libgirepository1.0-dev libcairo2-dev
-
-   # Arch Linux
-   sudo pacman -S libayatana-appindicator gtk3 gobject-introspection
-   ```
+   **Linux**：无需额外系统依赖，程序使用内置的 Qt 库运行托盘。建议在 Ubuntu 20.04+ 或其他主流发行版上运行。
+   
+   > 若启动时提示 `Qt platform plugin "xcb" could not be found`，请安装：  
+   > `sudo apt install libxcb-xinerama0 libxcb-cursor0 libnss3`
 
    从源码运行时还需 pip 安装：
    ```bash
