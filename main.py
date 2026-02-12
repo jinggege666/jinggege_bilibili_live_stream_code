@@ -54,7 +54,7 @@ if __name__ == '__main__':
         width=window_width,
         height=window_height,
         frameless=True,
-        easy_drag=sys.platform != 'win32', # Windows: 自定义拖拽; Linux: 启用原生拖拽(Wayland兼容)
+        easy_drag=False, # 仅通过 pywebview-drag-region CSS 类标记拖拽区域
         # hidden=True
     )
     def center_and_show_window(window):
@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
     # --- 全局标志 ---
     import threading
-    tray_state = {'is_exiting': False}
+    tray_state = {'is_exiting': False, 'tray_active': False}
     tray_icon = None  # Windows pystray icon 引用
 
     # --- 通用托盘回调（跨平台共享） ---
@@ -220,7 +220,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print(f"Error reading config: {e}")
 
-            if min_to_tray:
+            if min_to_tray and tray_state.get('tray_active', False):
                 # 最小化到托盘
                 if sys.platform == 'win32':
                     window.hide()
@@ -296,6 +296,8 @@ if __name__ == '__main__':
             icon = create_tray_icon_win(window)
             if icon:
                 tray_icon = icon
+                tray_state['tray_active'] = True
+                api.tray_active = True  # 同步到 api_service
                 tray_icon.run()
 
         threading.Thread(target=run_tray_win, daemon=True).start()
@@ -313,22 +315,30 @@ if __name__ == '__main__':
                 print("Install with: sudo apt install gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0")
                 return
 
-            # 图标路径
+            # 图标路径 - AppIndicator 需要 set_icon_theme_path + 无扩展名的图标名
             if getattr(sys, 'frozen', False):
-                icon_path = os.path.join(sys._MEIPASS, 'bilibili.ico')
+                icon_dir = sys._MEIPASS
             else:
-                icon_path = os.path.join(os.getcwd(), 'bilibili.ico')
+                icon_dir = os.getcwd()
 
-            # 如果 .ico 存在但 AppIndicator 不支持，尝试 .png
-            if not os.path.exists(icon_path):
-                icon_path = icon_path.replace('.ico', '.png')
+            # 确定图标文件名（优先 .png，回退 .ico）
+            icon_name = 'bilibili'
+            if os.path.exists(os.path.join(icon_dir, 'bilibili.png')):
+                icon_name = 'bilibili'
+            elif os.path.exists(os.path.join(icon_dir, 'bilibili.ico')):
+                icon_name = 'bilibili'
 
             indicator = AyatanaAppIndicator3.Indicator.new(
                 "bili-live-tool",
-                os.path.abspath(icon_path),
+                icon_name,
                 AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS
             )
+            indicator.set_icon_theme_path(os.path.abspath(icon_dir))
             indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
+
+            # 标记托盘已成功启动
+            tray_state['tray_active'] = True
+            api.tray_active = True  # 同步到 api_service
 
             menu = Gtk.Menu()
 
