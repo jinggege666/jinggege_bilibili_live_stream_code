@@ -307,6 +307,29 @@ if __name__ == '__main__':
         def create_tray_icon_linux():
             try:
                 import gi
+            except ImportError:
+                # [Fix] PyInstaller 打包后无法直接 import 系统的 gi
+                # 尝试将系统 Python 的 site-packages 加入 sys.path
+                if getattr(sys, 'frozen', False):
+                    import glob
+                    system_paths = (
+                        glob.glob('/usr/lib/python3*/dist-packages') +
+                        glob.glob('/usr/lib/python3*/site-packages') +
+                        glob.glob('/usr/lib/python3/dist-packages')
+                    )
+                    for p in system_paths:
+                        if p not in sys.path:
+                            sys.path.insert(0, p)
+                    try:
+                        import gi
+                    except ImportError:
+                        print("Linux tray: gi module not found even after path fix. Running without tray.")
+                        return
+                else:
+                    print("Linux tray: gi module not found. Running without tray.")
+                    return
+
+            try:
                 gi.require_version('Gtk', '3.0')
                 gi.require_version('AyatanaAppIndicator3', '0.1')
                 from gi.repository import Gtk, AyatanaAppIndicator3, GLib
