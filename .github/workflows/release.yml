@@ -155,7 +155,7 @@ jobs:
           $EXTRA_ARGS \
           ${{ matrix.pyinstaller_options }}
         elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-           pyinstaller main.py --name BiliLiveTool --onefile \
+           pyinstaller main.py --name BiliLiveTool --onedir \
             --add-data "frontend/dist:frontend/dist" \
             --add-data "bilibili.ico:." \
             --hidden-import _cffi_backend \
@@ -164,10 +164,6 @@ jobs:
             --hidden-import PyQt5 \
             --hidden-import webview.platforms.qt\
             --hidden-import brotli\
-            --hidden-import gi \
-            --hidden-import gi.repository.Gtk \
-            --hidden-import gi.repository.GLib \
-            --hidden-import gi.repository.AyatanaAppIndicator3 \
             --collect-all cffi \
             --collect-all brotli
 
@@ -197,10 +193,8 @@ jobs:
           ASSET_NAME="BiliLiveTool-${{ matrix.asset_name_suffix }}.zip"
           7z a -r $ASSET_NAME dist/$APP_NAME
         else # Linux
-          EXE_NAME="BiliLiveTool"
           ASSET_NAME="BiliLiveTool-${{ matrix.asset_name_suffix }}.tar.gz"
-          mv dist/$EXE_NAME .
-          tar -czvf $ASSET_NAME $EXE_NAME
+          tar -czvf $ASSET_NAME -C dist BiliLiveTool
         fi
         echo "ASSET_NAME=${ASSET_NAME}" >> $GITHUB_ENV
       shell: bash
