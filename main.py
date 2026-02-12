@@ -195,14 +195,12 @@ if __name__ == '__main__':
             if tray_icon:
                 tray_icon.stop()
         else:
-            # Linux: 通过 Gtk.main_quit 停止 GTK 主循环
-            try:
-                import gi
-                gi.require_version('Gtk', '3.0')
-                from gi.repository import Gtk
-                Gtk.main_quit()
-            except Exception:
-                pass
+            # Linux Qt cleanup
+            if tray_icon:
+                try:
+                    tray_icon.hide()
+                except Exception:
+                    pass
 
         print("Tray exit clicked. Cleaning up...")
         cleanup_services(api)
@@ -303,106 +301,117 @@ if __name__ == '__main__':
                 api.tray_active = True  # 同步到 api_service
                 tray_icon.run()
 
+    # Windows 托盘在独立线程启动
+    if sys.platform == 'win32':
         threading.Thread(target=run_tray_win, daemon=True).start()
+    
+    # --- Linux 托盘 (Qt Native) ---
+    def create_tray_icon_linux():
+        try:
+            from qtpy.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction
+            from qtpy.QtGui import QIcon
+            from qtpy.QtCore import QObject, Slot, Qt, QMetaObject
+        except ImportError:
+            print("Qt dependencies not found. Tray disabled.")
+            return
 
-    else:
-        # --- Linux 托盘 (AppIndicator3) ---
-        def create_tray_icon_linux():
-            # [Fix] 环境变量已在文件开头全局设置 (GDK_BACKEND=x11)
-            # os.environ['GDK_BACKEND'] = 'x11'
-            try:
-                import gi
-            except ImportError:
-                # [Fix] PyInstaller 打包后无法直接 import 系统的 gi
-                # 尝试将系统 Python 的 site-packages 加入 sys.path
+        global tray_icon
+        
+        # 此时 webview 已经启动，QApplication 必然存在
+        app = QApplication.instance()
+        
+        if not app:
+            # 尝试多等一下?
+            import time
+            for _ in range(5):
+                app = QApplication.instance()
+                if app: break
+                time.sleep(0.1)
+        
+        if not app:
+            print("QApplication not running. Tray disabled.")
+            return
+
+        # 定义在主线程运行的 Setup 逻辑
+        class TraySetup(QObject):
+            @Slot()
+            def run(self):
+                # 图标路径
                 if getattr(sys, 'frozen', False):
-                    import glob
-                    system_paths = (
-                        glob.glob('/usr/lib/python3*/dist-packages') +
-                        glob.glob('/usr/lib/python3*/site-packages') +
-                        glob.glob('/usr/lib/python3/dist-packages')
-                    )
-                    for p in system_paths:
-                        if p not in sys.path:
-                            sys.path.insert(0, p)
-                    try:
-                        import gi
-                    except ImportError:
-                        print("Linux tray: gi module not found even after path fix. Running without tray.")
-                        return
+                    base_path = sys._MEIPASS
                 else:
-                    print("Linux tray: gi module not found. Running without tray.")
-                    return
+                    base_path = os.getcwd()
+                
+                icon_path = os.path.join(base_path, 'bilibili.ico')
+                # Qt 在 Linux 上通常支持 png，ico 取决于插件。提供 png fallback
+                if not os.path.exists(icon_path):
+                        icon_path = os.path.join(base_path, 'bilibili.png')
+                
+                icon = QSystemTrayIcon(app)
+                if os.path.exists(icon_path):
+                    icon.setIcon(QIcon(icon_path))
+                else:
+                    print(f"Tray icon not found at {icon_path}")
+                    
+                icon.setToolTip("B站直播工具")
+                
+                menu = QMenu()
+                
+                a_show = QAction("显示主界面", menu)
+                a_show.triggered.connect(lambda: threading.Thread(target=tray_show_window, daemon=True).start())
+                menu.addAction(a_show)
+                
+                menu.addSeparator()
+                
+                a_start = QAction("开始直播", menu)
+                a_start.triggered.connect(lambda: threading.Thread(target=tray_start_live, daemon=True).start())
+                menu.addAction(a_start)
+                
+                a_stop = QAction("停止直播", menu)
+                a_stop.triggered.connect(lambda: threading.Thread(target=tray_stop_live, daemon=True).start())
+                menu.addAction(a_stop)
+                
+                menu.addSeparator()
+                
+                a_exit = QAction("退出程序", menu)
+                a_exit.triggered.connect(lambda: tray_exit()) 
+                menu.addAction(a_exit)
+                
+                icon.setContextMenu(menu)
+                
+                def on_activated(reason):
+                    if reason == QSystemTrayIcon.Trigger:
+                        threading.Thread(target=tray_show_window, daemon=True).start()
+                icon.activated.connect(on_activated)
+                
+                icon.show()
+                
+                global tray_icon
+                tray_icon = icon
+                
+                tray_state['tray_active'] = True
+                api.tray_active = True
+                print("Linux Qt Tray started.")
 
-            try:
-                gi.require_version('Gtk', '3.0')
-                gi.require_version('AyatanaAppIndicator3', '0.1')
-                from gi.repository import Gtk, AyatanaAppIndicator3, GLib
-            except (ImportError, ValueError) as e:
-                print(f"Linux tray dependencies not found ({e}). Running without tray.")
-                print("Install with: sudo apt install gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0")
-                return
+        # 3. 将 Setup 移动到主线程执行
+        setup_obj = TraySetup()
+        setup_obj.moveToThread(app.thread())
+        app._tray_setup = setup_obj # 防止 GC
+        
+        QMetaObject.invokeMethod(setup_obj, "run", Qt.QueuedConnection)
 
-            # 图标路径 - AppIndicator 需要 set_icon_theme_path + 无扩展名的图标名
-            if getattr(sys, 'frozen', False):
-                icon_dir = sys._MEIPASS
-            else:
-                icon_dir = os.getcwd()
+    # 定义启动回调：先显示窗口，再初始化 Linux 托盘
+    def on_app_start(window_obj=None):
+        if window_obj:
+            center_and_show_window(window_obj)
+        else:
+            center_and_show_window(window) # Fallback to global if None passed
+        if sys.platform != 'win32':
+            # 在 webview 启动后创建托盘，避免 app 初始化失败导致 crash
+            create_tray_icon_linux()
 
-            # 确定图标文件名（优先 .png，回退 .ico）
-            icon_name = 'bilibili'
-            if os.path.exists(os.path.join(icon_dir, 'bilibili.png')):
-                icon_name = 'bilibili'
-            elif os.path.exists(os.path.join(icon_dir, 'bilibili.ico')):
-                icon_name = 'bilibili'
-
-            indicator = AyatanaAppIndicator3.Indicator.new(
-                "bili-live-tool",
-                icon_name,
-                AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS
-            )
-            indicator.set_icon_theme_path(os.path.abspath(icon_dir))
-            indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
-
-            # 标记托盘已成功启动
-            tray_state['tray_active'] = True
-            api.tray_active = True  # 同步到 api_service
-
-            menu = Gtk.Menu()
-
-            # 显示主界面
-            item_show = Gtk.MenuItem(label='显示主界面')
-            item_show.connect('activate', lambda _: threading.Thread(target=tray_show_window, daemon=True).start())
-            menu.append(item_show)
-
-            # 分隔线
-            menu.append(Gtk.SeparatorMenuItem())
-
-            # 开始直播
-            item_start = Gtk.MenuItem(label='开始直播')
-            item_start.connect('activate', lambda _: threading.Thread(target=tray_start_live, daemon=True).start())
-            menu.append(item_start)
-
-            # 停止直播
-            item_stop = Gtk.MenuItem(label='停止直播')
-            item_stop.connect('activate', lambda _: threading.Thread(target=tray_stop_live, daemon=True).start())
-            menu.append(item_stop)
-
-            # 分隔线
-            menu.append(Gtk.SeparatorMenuItem())
-
-            # 退出程序
-            item_exit = Gtk.MenuItem(label='退出程序')
-            item_exit.connect('activate', lambda _: tray_exit())
-            menu.append(item_exit)
-
-            menu.show_all()
-            indicator.set_menu(menu)
-
-            logger.info("Linux AppIndicator tray started.")
-            Gtk.main()
-
-        threading.Thread(target=create_tray_icon_linux, daemon=True).start()
-
-    webview.start(center_and_show_window, window)
+    # [Fix] 强制 Linux 使用 Qt 后端，确保与 QSystemTrayIcon 兼容
+    # Windows 保持默认 (Edge/CEF)
+    gui_backend = 'qt' if sys.platform != 'win32' else None
+    webview.start(on_app_start, window, gui=gui_backend)
 
