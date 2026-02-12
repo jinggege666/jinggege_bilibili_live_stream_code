@@ -9,6 +9,9 @@ if sys.platform != 'win32':
     os.environ["QT_QPA_PLATFORM"] = "xcb"
     # [Fix] 强制使用 Fusion 风格，防止 Qt 尝试加载 GTK 主题 (QGtkStyle) 导致崩溃
     os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
+    # [Fix] 禁用平台主题插件 (如 qt5ct, gtk2)，防止它们加载 GTK
+    if "QT_QPA_PLATFORMTHEME" in os.environ:
+        del os.environ["QT_QPA_PLATFORMTHEME"]
 
 import webview
 import logging
@@ -408,9 +411,24 @@ if __name__ == '__main__':
             center_and_show_window(window_obj)
         else:
             center_and_show_window(window) # Fallback to global if None passed
+            
         if sys.platform != 'win32':
-            # 在 webview 启动后创建托盘，避免 app 初始化失败导致 crash
-            create_tray_icon_linux()
+             # 允许通过环境变量禁用托盘，方便排查崩溃问题
+            if os.environ.get("DISABLE_TRAY", "0") == "1":
+                print("Linux tray disabled by environment variable.")
+                return
+
+            try:
+                # 检查托盘是否可用 (虽然这不一定能防住崩溃)
+                from qtpy.QtWidgets import QSystemTrayIcon
+                if not QSystemTrayIcon.isSystemTrayAvailable():
+                     print("System tray report unavailable. Skipping tray creation.")
+                     return
+                
+                # 在 webview 启动后创建托盘
+                create_tray_icon_linux()
+            except Exception as e:
+                print(f"Failed to create Linux tray: {e}")
 
     # [Fix] 强制 Linux 使用 Qt 后端，确保与 QSystemTrayIcon 兼容
     # Windows 保持默认 (Edge/CEF)
