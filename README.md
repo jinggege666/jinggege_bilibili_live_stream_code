@@ -53,10 +53,18 @@
 
    ```bash
    # Ubuntu / Debian
-   sudo apt install gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0 libgirepository1.0-dev
+   sudo apt install gir1.2-ayatanaappindicator3-0.1 gir1.2-gtk-3.0 libgirepository1.0-dev libcairo2-dev
+
+   # Arch Linux
+   sudo pacman -S libayatana-appindicator gtk3 gobject-introspection
    ```
 
-   > 未安装时程序仍可正常运行，仅无托盘图标。
+   从源码运行时还需 pip 安装：
+   ```bash
+   pip install PyGObject
+   ```
+
+   > 未安装时程序仍可正常运行，仅无托盘图标。打包后的二进制仅需系统包（无需 pip 安装）。
 
 4. **准备图标 (可选)**
 
