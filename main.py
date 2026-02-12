@@ -1,9 +1,12 @@
 import os
 import sys
 
-# [修复] 强制 Linux 下使用 x11 后端以支持 window.move (解决 Wayland 下无法拖拽的问题)
+# [修复] 强制 Linux 下使用 x11 后端 (XWayland)
+# 1. GDK_BACKEND=x11: 修复 Wayland 下 GTK 托盘初始化崩溃 "Can't create GtkStyleContext without display"
+# 2. QT_QPA_PLATFORM=xcb: 强制 Qt 使用 X11 后端，确保窗口拖动 (window.move) 和位置控制在 Wayland 下正常工作
 if sys.platform != 'win32':
     os.environ["GDK_BACKEND"] = "x11"
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 import webview
 import logging
@@ -305,6 +308,8 @@ if __name__ == '__main__':
     else:
         # --- Linux 托盘 (AppIndicator3) ---
         def create_tray_icon_linux():
+            # [Fix] 环境变量已在文件开头全局设置 (GDK_BACKEND=x11)
+            # os.environ['GDK_BACKEND'] = 'x11'
             try:
                 import gi
             except ImportError:
