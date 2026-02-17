@@ -136,7 +136,7 @@ input:checked + .slider:before {
   padding: 15px; border-radius: 12px;
   flex: 1; /* Fill remaining space */
   overflow-y: auto;
-  font-family: monospace; font-size: 12px;
+  font-family: "Sarasa Mono SC", "Source Han Mono SC", "Noto Sans Mono CJK SC", "WenQuanYi Micro Hei Mono", monospace; font-size: 12px;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
   min-height: 0;
 }

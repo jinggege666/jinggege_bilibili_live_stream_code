@@ -165,7 +165,7 @@ onUnmounted(() => {
   background: #f2f2f2; /* QQ 经典的浅灰底色 */
   border-radius: 16px; /* 圆润边框 */
   overflow: hidden;
-  font-family: "Microsoft YaHei", sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
   box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 

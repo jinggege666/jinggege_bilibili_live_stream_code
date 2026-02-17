@@ -154,7 +154,7 @@ const currentData = computed(() => {
   color: #555;
   border: 1px solid #d0d7de;
   cursor: text;
-  font-family: monospace;
+  font-family: "Sarasa Mono SC", "Source Han Mono SC", "Noto Sans Mono CJK SC", "WenQuanYi Micro Hei Mono", monospace;
   flex: 1;
   font-size: 12px;
   padding-right: 32px; /* 为图标留出空间 */
