@@ -51,10 +51,56 @@ def get_html_path():
         return os.path.join(sys._MEIPASS, 'frontend', 'dist', 'index.html')
     return os.path.join(os.getcwd(), 'frontend', 'dist', 'index.html')
 
+# 启用高 DPI 感知，确保在高分辨率显示器上的正确缩放
+def _enable_windows_dpi_awareness():
+    import ctypes
+    # 先尝试 PMv2
+    try:
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        return
+    except Exception:
+        pass
+
+    # Fallback: Per-monitor aware
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except Exception:
+        pass
+
+    # Fallback: System DPI aware
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+def _get_primary_monitor_scale_win():
+    import ctypes
+    from ctypes import wintypes
+
+    try:
+        shcore = ctypes.windll.shcore
+        user32 = ctypes.windll.user32
+
+        hwnd = user32.GetDesktopWindow()
+        hmon = user32.MonitorFromWindow(hwnd, 1)
+
+        MDT_EFFECTIVE_DPI = 0
+        dpi_x = wintypes.UINT()
+        dpi_y = wintypes.UINT()
+        shcore.GetDpiForMonitor(hmon, MDT_EFFECTIVE_DPI, ctypes.byref(dpi_x), ctypes.byref(dpi_y))
+        return dpi_x.value / 96.0
+    except Exception:
+        return 1.0
+
 if __name__ == '__main__':
     api = ApiService()
     window_width = 1000
     window_height = 720
+    scale = 1.0
+    if sys.platform == 'win32':
+        _enable_windows_dpi_awareness()
+        scale = _get_primary_monitor_scale_win()
     window = webview.create_window(
         'B站直播工具',
         url=get_html_path(),
@@ -67,8 +113,15 @@ if __name__ == '__main__':
     )
     def center_and_show_window(window):
         primary_screen = webview.screens[0]
-        x = (primary_screen.width - window.width) // 2
-        y = (primary_screen.height - window.height) // 2
+        if sys.platform == 'win32':
+            screen_w = int(primary_screen.width / scale)
+            screen_h = int(primary_screen.height / scale)
+        else:
+            screen_w = primary_screen.width
+            screen_h = primary_screen.height
+
+        x = (screen_w - window_width) // 2
+        y = (screen_h - window_height) // 2
         window.move(x, y)
         
         # [修复] Windows 下无边框窗口无法通过任务栏图标最小化的问题
