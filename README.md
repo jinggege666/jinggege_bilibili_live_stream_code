@@ -112,3 +112,7 @@
 
 1. 支持推流码类型：RTMP和SRT；
 2. 因为本人穷，用不起mac，mac用户可以自行进行测试，如果调试到可以正常运行，欢迎提交pr；
+
+### ⭐ Star 历史
+
+   [![Stargazers over time](https://starchart.cc/ChaceQC/bilibili_live_stream_code.svg?variant=adaptive)](https://starchart.cc/ChaceQC/bilibili_live_stream_code)
