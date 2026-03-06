@@ -11,6 +11,7 @@ import RtmpPanel from '@/components/RtmpPanel.vue';
 import MessageModal from '@/components/MessageModal.vue';
 import UserAccountModal from '@/components/UserAccountModal.vue';
 import WindowControls from '@/components/WindowControls.vue';
+import CustomStreamPanel from '@/components/CustomStreamPanel.vue';
 
 const { loadSavedConfig, getWindowPosition, windowDrag, refreshCurrentUser } = useBridge();
 const activeTab = ref('account');
@@ -193,7 +194,7 @@ const handleSidebarAccountClick = () => {
       <main class="content">
         <KeepAlive>
           <component
-            :is="activeTab === 'account' ? AccountPanel : activeTab === 'stream' ? StreamPanel : activeTab === 'rtmp' ? RtmpPanel : activeTab === 'console' ? ConsolePanel : DanmuPanel"
+            :is="activeTab === 'account' ? AccountPanel : activeTab === 'stream' ? StreamPanel : activeTab === 'rtmp' ? RtmpPanel : activeTab === 'console' ? ConsolePanel : activeTab === 'push'? CustomStreamPanel : DanmuPanel"
             :current-user="userInfo"
             :form-data="globalForm"
             :live-state="liveState"

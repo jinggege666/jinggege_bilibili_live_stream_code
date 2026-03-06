@@ -149,6 +149,30 @@ export const useBridge = () => {
       }
     },
 
+
+
+    // 自动推流（使用本地 ffmpeg）：启动/停止/状态
+    async startAutopush(videoPath, streamUrl, streamKey) {
+      const res = await callPy('start_autopush', videoPath, streamUrl, streamKey);
+      return res.code === 0 ? { success: true, msg: res.msg } : { success: false, msg: res.msg };
+    },
+
+    async stopAutopush() {
+      const res = await callPy('stop_autopush');
+      return res.code === 0 ? { success: true, msg: res.msg } : { success: false, msg: res.msg };
+    },
+
+    async autopushStatus() {
+      const res = await callPy('autopush_status');
+      return res.code === 0 ? res.data : { is_pushing: false };
+    },
+
+    // 文件对话
+    async openFileDialog() {
+      const res = await callPy('open_file_dialog');
+      return res.code === 0 ? res.data : null;
+    },
+
     // 账户管理接口
     async getAccountList() {
       const res = await callPy('get_account_list');

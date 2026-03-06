@@ -9,6 +9,7 @@ from backend.services.user_service import UserService
 from backend.services.live_service import LiveService
 from backend.services.auth_service import AuthService
 from backend.services.danmu_service import DanmuService
+from backend.services.autopush_service import AutoPushService
 
 logger = logging.getLogger("ApiService")
 
@@ -32,6 +33,8 @@ class ApiService:
         self.api_client = BilibiliApi()
         self.config_manager = Config()
         self.session_state = SessionState()
+        # 自定义第三方推流地址（仅内存保存，供前端显示/复制）
+        self.custom_stream_url = None
         
         # Initialize services
         self.window_service = WindowService()
@@ -39,6 +42,8 @@ class ApiService:
         self.live_service = LiveService(self.api_client, self.config_manager, self.session_state)
         self.auth_service = AuthService(self.api_client, self.user_service, self.live_service, self.session_state)
         self.danmu_service = DanmuService(self.api_client, self.session_state)
+        # 自动推流服务
+        self.autopush_service = AutoPushService()
         
         # 设置弹幕回调
         self.danmu_service.set_callback(self._on_danmu_message)
@@ -156,3 +161,65 @@ class ApiService:
             self.config_manager.save()
             return {"code": 0}
         return {"code": -1, "msg": "Unknown config key"}
+
+
+    # --- File Dialog ---
+    def open_file_dialog(self):
+        """打开原生文件对话，返回选择的视频文件路径。
+        会记住上一次选择的目录，并在下次打开时作为初始目录。"""
+        try:
+            import os
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()  # 隐藏主窗口
+            options = {
+                "title": "选择视频文件",
+                "filetypes": [("视频文件", "*.mp4 *.avi *.mkv *.mov *.flv"), ("所有文件", "*.*")]
+            }
+            if hasattr(self, 'last_file_dir') and self.last_file_dir:
+                options['initialdir'] = self.last_file_dir
+            file_path = filedialog.askopenfilename(**options)
+            root.destroy()
+            if file_path:
+                # 保存目录
+                self.last_file_dir = os.path.dirname(file_path)
+                return {"code": 0, "data": {"path": file_path}}
+            return {"code": -1, "msg": "未选择文件"}
+        except ImportError:
+            return {"code": -1, "msg": "tkinter 不可用"}
+        except Exception as e:
+            return {"code": -1, "msg": str(e)}
+
+    # --- Auto Push (ffmpeg based automated push) ---
+    def start_autopush(self, video_path, stream_url, stream_key):
+        """启动基于 ffmpeg 的自动推流。"""
+        try:
+            def cb(success, msg):
+                try:
+                    self.window_service.send_to_frontend('onAutoPushFinished', {'success': success, 'msg': msg})
+                except Exception:
+                    logger.exception('Failed to send autopush finished event')
+
+            ok, msg = self.autopush_service.start_push(video_path, stream_url, stream_key, callback=cb)
+            if ok:
+                return {"code": 0, "msg": msg}
+            return {"code": -1, "msg": msg}
+        except Exception as e:
+            logger.error(f"start_autopush failed: {e}")
+            return {"code": -1, "msg": str(e)}
+
+    def stop_autopush(self):
+        try:
+            ok, msg = self.autopush_service.stop_push()
+            return {"code": 0 if ok else -1, "msg": msg}
+        except Exception as e:
+            logger.error(f"stop_autopush failed: {e}")
+            return {"code": -1, "msg": str(e)}
+
+    def autopush_status(self):
+        try:
+            return {"code": 0, "data": {"is_pushing": bool(self.autopush_service.is_pushing())}}
+        except Exception as e:
+            logger.error(f"autopush_status failed: {e}")
+            return {"code": -1, "msg": str(e)}
