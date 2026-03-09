@@ -3,6 +3,9 @@ import subprocess
 import time
 import socket
 import logging
+import os
+import sys
+import platform
 from typing import Optional, Callable, Tuple
 
 logger = logging.getLogger("AutoPushService")
@@ -15,6 +18,25 @@ class AutoPushService:
         self.ffmpeg_process: Optional[subprocess.Popen] = None
         self._is_pushing = False
         self.stopbyuser = False
+    
+    def _get_ffmpeg_path(self) -> str:
+        """返回 ffmpeg 路径：
+        - Windows：使用打包进来的 ffmpeg.exe
+        - Linux/macOS：使用系统自带的 ffmpeg（依赖 PATH）
+        """
+        if platform.system() == "Windows":
+            if getattr(sys, 'frozen', False):
+                # PyInstaller 打包后的 Windows 环境
+                return os.path.join(sys._MEIPASS, "ffmpeg.exe")
+            else:
+                # 开发阶段：可选使用本地 tools/ffmpeg.exe，或 fallback 到 PATH
+                dev_path = os.path.join(os.path.dirname(__file__), "tools", "ffmpeg.exe")
+                if os.path.exists(dev_path):
+                    return dev_path
+                return "ffmpeg"
+        else:
+            # Linux / macOS：直接使用系统 ffmpeg
+            return "ffmpeg"
 
     def start_push(self, video_path: str, stream_url: str, stream_key: str, callback: Optional[Callable[[bool, str], None]] = None) -> Tuple[bool, str]:
         with self._lock:
@@ -112,7 +134,7 @@ class AutoPushService:
 
     def _execute_ffmpeg_push(self, video_path: str, stream_url: str, stream_key: str) -> Tuple[bool, str]:
         cmd = [
-            'ffmpeg', '-re', '-i', video_path,
+            self._get_ffmpeg_path(), '-re', '-i', video_path,
             '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
             '-c:v', 'libx264', '-b:v', '4000k', '-preset', 'veryfast',
             '-fps_mode', 'vfr', '-tune', 'zerolatency', '-g', '20',
