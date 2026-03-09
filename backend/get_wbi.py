@@ -16,6 +16,11 @@ import urllib.parse
 import time
 import requests
 
+# 全局缓存变量
+_wbi_keys_cache = None
+_wbi_keys_timestamp = 0
+_WBI_KEYS_CACHE_DURATION = 3600  # 缓存1小时
+
 # 打乱映射表
 mixinKeyEncTab = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
@@ -49,7 +54,15 @@ def encWbi(params: dict, img_key: str, sub_key: str):
 
 
 def getWbiKeys() -> tuple[str, str]:
-    """获取最新的 img_key 和 sub_key"""
+    """获取最新的 img_key 和 sub_key（带缓存）"""
+    global _wbi_keys_cache, _wbi_keys_timestamp
+    
+    # 检查缓存是否有效
+    current_time = time.time()
+    if _wbi_keys_cache and (current_time - _wbi_keys_timestamp) < _WBI_KEYS_CACHE_DURATION:
+        return _wbi_keys_cache
+    
+    # 缓存失效，重新获取
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
         'Referer': 'https://www.bilibili.com/'
@@ -61,6 +74,11 @@ def getWbiKeys() -> tuple[str, str]:
     sub_url: str = json_content['data']['wbi_img']['sub_url']
     img_key = img_url.rsplit('/', 1)[1].split('.')[0]
     sub_key = sub_url.rsplit('/', 1)[1].split('.')[0]
+    
+    # 更新缓存
+    _wbi_keys_cache = (img_key, sub_key)
+    _wbi_keys_timestamp = current_time
+    
     return img_key, sub_key
 
 

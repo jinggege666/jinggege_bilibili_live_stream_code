@@ -213,6 +213,32 @@ export const useBridge = () => {
       return res;
     },
 
+    // 兑换码获取
+    async getRedeemInfo(taskId) {
+      const res = await callPy('get_redeem_info', taskId);
+      return res;
+    },
+
+    async getRedeemHistory() {
+      const res = await callPy('get_redeem_history');
+      return res;
+    },
+
+    async saveRedeemInfo(redeemData) {
+      const res = await callPy('save_redeem_info', redeemData);
+      return res;
+    },
+
+    async deleteRedeemInfo(taskId) {
+      const res = await callPy('delete_redeem_info', taskId);
+      return res;
+    },
+
+    async checkRedeemStatus(taskId) {
+      const res = await callPy('check_redeem_status', taskId);
+      return res;
+    },
+
     // App 配置
     async getAppConfig() {
       const res = await callPy('get_app_config');

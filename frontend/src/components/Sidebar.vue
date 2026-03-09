@@ -8,7 +8,7 @@ const defaultFace = 'https://static.hdslb.com/images/member/noface.gif';
 
 const menuItems = computed(() => {
   if (props.user.isLoggedIn) {
-    return ['account', 'stream', 'rtmp', 'console',  'push', 'danmu'];
+    return ['account', 'stream', 'rtmp', 'console',  'push', 'redeem', 'danmu'];
   } else {
     return ['account', 'console'];
   }
@@ -22,7 +22,7 @@ const menuItems = computed(() => {
     <nav class="nav-menu">
       <div v-for="t in menuItems" :key="t"
            class="item" :class="{active: activeTab===t}" @click="$emit('change', t)">
-        {{ t==='account'?'账号': t==='stream'?'直播': t==='rtmp'?'推流码': t==='console'?'控制台': t==='push'?'FFmpeg推流':'弹幕' }}
+        {{ t==='account'?'账号': t==='stream'?'直播': t==='rtmp'?'推流码': t==='console'?'控制台': t==='push'?'FFmpeg推流': t==='redeem'?'兑换码获取':'弹幕' }}
       </div>
     </nav>
 
