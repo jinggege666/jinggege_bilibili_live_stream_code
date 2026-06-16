@@ -6,11 +6,9 @@ if sys.platform == 'linux':
     os.environ["GDK_BACKEND"] = "x11"
     os.environ["QT_QPA_PLATFORM"] = "xcb"
     os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
-    os.environ["XDG_SESSION_TYPE"] = "cxb"
     if "QT_QPA_PLATFORMTHEME" in os.environ:
         os.environ["QT_QPA_PLATFORMTHEME"] = ""
-    os.environ["QT_XCB_GL_INTEGRATION"] = "none"
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --no-sandbox --enable-features=UseOzonePlatform --ozone-platform=x11"
+
 elif sys.platform == 'win32':
     os.environ["QT_OPENGL"] = "software"
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer"
