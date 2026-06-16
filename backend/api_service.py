@@ -100,8 +100,13 @@ class ApiService:
     def load_saved_config(self): return self.user_service.load_saved_config()
     def refresh_current_user(self): return self.user_service.refresh_current_user()
     def get_account_list(self): return self.user_service.get_account_list()
-    def switch_account(self, uid): return self.user_service.switch_account(uid)
-    def logout(self, uid): return self.user_service.logout(uid)
+    def switch_account(self, uid):
+        # 切换账户前先停止弹幕，防止新连接使用旧账户
+        asyncio.run_coroutine_threadsafe(self.danmu_service.stop(), self.loop)
+        return self.user_service.switch_account(uid)
+    def logout(self, uid):
+        asyncio.run_coroutine_threadsafe(self.danmu_service.stop(), self.loop)
+        return self.user_service.logout(uid)
 
     # --- Auth Proxy Methods ---
     def get_login_qrcode(self): return self.auth_service.get_login_qrcode()
@@ -122,13 +127,13 @@ class ApiService:
         
     def stop_live(self): 
         res = self.live_service.stop_live()
-        if res['code'] == 0:
-            asyncio.run_coroutine_threadsafe(self.danmu_service.stop(), self.loop)
         return res
 
     # --- Danmu Methods ---
     def start_danmu_monitor(self):
-        """手动开启弹幕监听（用于测试或非开播状态）"""
+        """开启弹幕监听，如果已在运行则跳过"""
+        if self.danmu_service.running:
+            return {"code": 0, "msg": "弹幕已在运行"}
         room_id = self.session_state.room_id
         if not room_id:
              return {"code": -1, "msg": "未获取到房间ID"}
@@ -161,7 +166,6 @@ class ApiService:
             self.config_manager.save()
             return {"code": 0}
         return {"code": -1, "msg": "Unknown config key"}
-
 
     # --- File Dialog ---
     def open_file_dialog(self):
@@ -223,3 +227,20 @@ class ApiService:
         except Exception as e:
             logger.error(f"autopush_status failed: {e}")
             return {"code": -1, "msg": str(e)}
+
+    def get_version(self):
+        """获取应用版本号"""
+        import os, sys
+        try:
+            if getattr(sys, 'frozen', False):
+                base = sys._MEIPASS
+            else:
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            version_file = os.path.join(base, 'VERSION')
+            if os.path.exists(version_file):
+                with open(version_file, 'r', encoding='utf-8') as f:
+                    return {"code": 0, "version": f.read().strip()}
+        except Exception:
+            pass
+        return {"code": 0, "version": "dev"}
+

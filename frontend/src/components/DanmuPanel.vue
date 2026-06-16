@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onActivated, nextTick } from 'vue';
 import { useBridge } from '@/api/bridge';
 
-const { startDanmuMonitor, stopDanmuMonitor, sendDanmu } = useBridge();
+const { startDanmuMonitor, sendDanmu } = useBridge();
 const messages = ref([]);
 const messageListRef = ref(null);
 const isAutoScroll = ref(true);
@@ -70,18 +70,17 @@ const handleSend = async () => {
   }
 };
 
-onMounted(() => {
-  // 暴露给全局，供 Python 调用
+// 使用 onActivated/onDeactivated 替代 onMounted/onUnmounted
+// 因为父组件使用了 KeepAlive，onMounted 只会在第一次进入时触发
+// onActivated 会在每次切换到弹幕 Tab 时触发，确保弹幕能重新连接
+onActivated(() => {
   window.onDanmuMessage = (data) => {
     addMessage(data);
   };
   startDanmuMonitor();
 });
 
-onUnmounted(() => {
-  stopDanmuMonitor();
-  window.onDanmuMessage = null;
-});
+// 切出弹幕 Tab 时不停止弹幕连接，让弹幕在后台持续运行
 </script>
 
 <template>
@@ -97,7 +96,7 @@ onUnmounted(() => {
 
     <div class="message-list" ref="messageListRef" @scroll="handleScroll">
       <TransitionGroup name="msg-anim">
-        <div v-for="(msg, index) in messages" :key="index" class="message-row">
+        <div v-for="(msg, index) in messages" :key="index" class="message-row" :class="{ 'is-danmu': msg.type === 'danmu' }">
 
           <template v-if="msg.type === 'danmu'">
             <div class="avatar-col">
@@ -135,7 +134,6 @@ onUnmounted(() => {
       </TransitionGroup>
     </div>
 
-    <!-- 发送区域 -->
     <div class="send-area">
       <input
         type="text"
@@ -221,7 +219,8 @@ onUnmounted(() => {
 /* === QQ 风格核心样式 === */
 
 /* 1. 弹幕布局：Flex Row */
-.message-row:has(.avatar-col) {
+/* [修改点 2] 移除不兼容的 :has 选择器，使用更通用的 class 选择器 */
+.message-row.is-danmu {
   flex-direction: row;
   align-items: flex-start;
 }

@@ -1,15 +1,21 @@
 import os
 import sys
 
-# [修复] 强制 Linux 下使用 x11 后端 (XWayland)
-# 1. GDK_BACKEND=x11: 修复 Wayland 下 GTK 托盘初始化崩溃 "Can't create GtkStyleContext without display"
-# 2. QT_QPA_PLATFORM=xcb: 强制 Qt 使用 X11 后端，确保窗口拖动 (window.move) 和位置控制在 Wayland 下正常工作
-if sys.platform != 'win32':
+# [修复] 根据平台设置不同的环境变量
+if sys.platform == 'linux':
     os.environ["GDK_BACKEND"] = "x11"
     os.environ["QT_QPA_PLATFORM"] = "xcb"
-    # [Fix] 强制使用 Fusion 风格，防止 Qt 尝试加载 GTK 主题 (QGtkStyle) 导致崩溃
     os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
-    # [Fix] 禁用平台主题插件 (如 qt5ct, gtk2)，防止它们加载 GTK
+    os.environ["XDG_SESSION_TYPE"] = "cxb"
+    if "QT_QPA_PLATFORMTHEME" in os.environ:
+        os.environ["QT_QPA_PLATFORMTHEME"] = ""
+    os.environ["QT_XCB_GL_INTEGRATION"] = "none"
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --no-sandbox --enable-features=UseOzonePlatform --ozone-platform=x11"
+elif sys.platform == 'win32':
+    os.environ["QT_OPENGL"] = "software"
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer"
+elif sys.platform == 'darwin':
+    os.environ["QT_QPA_PLATFORM"] = "cocoa"
     if "QT_QPA_PLATFORMTHEME" in os.environ:
         del os.environ["QT_QPA_PLATFORMTHEME"]
 
@@ -18,9 +24,25 @@ import logging
 from logging.handlers import RotatingFileHandler
 from backend.api_service import ApiService
 
+def get_log_xdg_base_path():
+    """
+    获取 XDG 标准的 log base path
+    """
+    # 获取 XDG 标准的 DATA_HOME
+    data_home = os.environ.get('XDG_DATA_HOME')
+
+    if not data_home or data_home == '':
+        # 默认回退
+        data_home = os.path.expanduser('~/.local/share')
+
+    base_path = os.path.join(data_home, "BiliLiveTool")
+    return base_path
+
 # 获取日志目录
 def get_log_path():
-    if getattr(sys, 'frozen', False):
+    if sys.platform.startswith('linux'):
+        base_path = get_log_xdg_base_path()
+    elif getattr(sys, 'frozen', False):
         base_path = os.path.dirname(sys.executable)
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
@@ -151,12 +173,9 @@ if __name__ == '__main__':
                     # GWL_STYLE = -16
                     user32 = ctypes.windll.user32
                     style = user32.GetWindowLongW(hwnd, -16)
-                    
-                    # 1. 去除 WS_THICKFRAME (0x00040000) 以消除顶部白条
-                    #    之前的尝试中添加了这个样式导致了白条
+
                     style &= ~0x00040000
-                    
-                    # 2. 添加 WS_MINIMIZEBOX (0x00020000) 以支持任务栏点击最小化
+
                     style |= 0x00020000 
                     
                     user32.SetWindowLongW(hwnd, -16, style)
@@ -169,7 +188,6 @@ if __name__ == '__main__':
 
         window.show()
 
-        # [Fix] Linux (Qt backend): 防止隐藏最后一个窗口时 Qt 自动退出
         if sys.platform != 'win32':
             try:
                 from qtpy.QtWidgets import QApplication
